@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from pathlib import Path
 
 # =================================================
 # PAGE CONFIG
@@ -113,7 +114,10 @@ st.markdown("""
 # =================================================
 # LOAD MODEL
 # =================================================
-MODEL_PATH = r"C:/Users/HP/Downloads/Data_analyst_learning/amazon_project/models/DELAY_MODEL_FINAL.pkl"
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL.pkl"
+
 model = joblib.load(MODEL_PATH)
 
 # =================================================
@@ -142,6 +146,7 @@ traffic = st.sidebar.selectbox("Traffic", ["Low", "Medium", "High", "Jam"])
 vehicle = st.sidebar.selectbox("Vehicle", ["motorcycle", "scooter"])
 area = st.sidebar.selectbox("Area", ["Urban", "Metropolitian", "Rural"])
 category = st.sidebar.selectbox("Category", ["Clothing", "Electronics", "Sports", "Cosmetics", "Toys"])
+
 duration = st.sidebar.number_input(
     "Estimated Doorstep Delivery Time (minutes)",
     10, 300, 120
@@ -157,7 +162,8 @@ input_df = pd.DataFrame([{
     "Traffic": traffic,
     "Vehicle": vehicle,
     "Area": area,
-    "Category": category
+    "Category": category,
+    "Duration": duration
 }])
 
 col1, col2 = st.columns(2)
@@ -213,14 +219,3 @@ st.markdown("""
 Built with Python • XGBoost • Streamlit • Real-world Logistics Data
 </div>
 """, unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
-
-
