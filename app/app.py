@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import joblib
+import xgboost as xgb
+import numpy as np
 
 # =================================================
 # PAGE CONFIG
@@ -25,12 +27,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =================================================
-# LOAD MODEL
+# LOAD PREPROCESSOR + MODEL
 # =================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL_CLOUD.pkl"
 
-model = joblib.load(MODEL_PATH)
+# Load preprocessing pipeline
+preprocessor = joblib.load(BASE_DIR / "models" / "PREPROCESSOR.pkl")
+
+# Load trained XGBoost booster model
+xgb_model = xgb.Booster()
+xgb_model.load_model(str(BASE_DIR / "models" / "XGBMODEL.json"))
 
 # =================================================
 # HEADER
@@ -38,6 +44,7 @@ model = joblib.load(MODEL_PATH)
 st.markdown("""
 <div style="text-align:center;">
     <h1>📦 Amazon Delivery Delay Prediction</h1>
+    <p>Machine learning model that predicts whether an order will arrive late or on time.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -55,7 +62,7 @@ area = st.sidebar.selectbox("Area", ["Urban", "Metropolitian", "Rural"])
 category = st.sidebar.selectbox("Category", ["Clothing", "Electronics", "Sports", "Cosmetics", "Toys"])
 
 # =================================================
-# MAKE DATAFRAME ACCORDING TO TRAINING MODEL
+# CREATE DATAFRAME
 # =================================================
 input_df = pd.DataFrame([{
     "Agent_Age": age,
@@ -72,18 +79,28 @@ input_df = pd.DataFrame([{
 # =================================================
 if st.button("🚀 Predict Delivery Status"):
 
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]
+    # 1️⃣ preprocess input data
+    X = preprocessor.transform(input_df)
+
+    # 2️⃣ convert to XGBoost format
+    dtest = xgb.DMatrix(X)
+
+    # 3️⃣ get probability score
+    proba = float(xgb_model.predict(dtest)[0])
+
+    pred = 1 if proba >= 0.5 else 0
 
     if pred == 1:
-        st.error(
-            f"🚨 High Delay Risk — Probability: {prob:.2%}"
-        )
+        st.error(f"🚨 High Delay Risk — Probability: {proba:.2%}")
     else:
-        st.success(
-            f"✅ Delivery On Time — Probability: {prob:.2%}"
-        )
+        st.success(f"✅ On Time Delivery — Probability: {proba:.2%}")
 
+# =================================================
+# FOOTER
+# =================================================
 st.write("---")
-st.markdown("<p style='text-align:center;color:#ccc;'>Machine Learning • Streamlit</p>", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center;color:#ccc;'>Built with XGBoost + Streamlit</p>",
+    unsafe_allow_html=True
+)
 
