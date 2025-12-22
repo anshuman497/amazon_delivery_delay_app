@@ -98,11 +98,15 @@ st.markdown("""
 # =================================================
 # LOAD BOOSTER MODEL
 # =================================================
+import xgboost as xgb
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL_BOOSTER.json"
 
 model = xgb.Booster()
-model.load_model(MODEL_PATH)
+model.load_model(str(MODEL_PATH))
+
+
 
 # =================================================
 # HEADER
