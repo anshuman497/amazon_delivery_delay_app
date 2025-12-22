@@ -115,10 +115,14 @@ st.markdown("""
 # LOAD MODEL
 # =================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL.pkl"
+import xgboost as xgb
 
-model = joblib.load(MODEL_PATH)
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL.json"
+
+model = xgb.XGBClassifier()
+model.load_model(MODEL_PATH)
+
 
 # =================================================
 # HEADER
