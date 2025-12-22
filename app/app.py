@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import joblib
 from pathlib import Path
+import xgboost as xgb
+import numpy as np
 
 # =================================================
 # PAGE CONFIG
@@ -18,19 +19,14 @@ st.set_page_config(
 st.markdown("""
 <style>
 
-/* FULL PAGE GRADIENT */
 .stApp {
     background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
     color: white;
 }
-
-/* REMOVE DEFAULT PADDING */
 .block-container {
     padding-top: 2rem;
     padding-bottom: 3rem;
 }
-
-/* SIDEBAR */
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #232526, #414345);
     padding: 20px;
@@ -38,8 +34,6 @@ st.markdown("""
 [data-testid="stSidebar"] label {
     color: #F9FAFB !important;
 }
-
-/* HEADERS */
 .main-title {
     font-size: 3.2rem;
     font-weight: 800;
@@ -51,8 +45,6 @@ st.markdown("""
     color: #E5E7EB;
     font-size: 1.1rem;
 }
-
-/* CARD */
 .card {
     background: linear-gradient(145deg, #ffffff, #f1f5f9);
     color: #111827;
@@ -61,8 +53,6 @@ st.markdown("""
     box-shadow: 0px 20px 40px rgba(0,0,0,0.35);
     margin-bottom: 30px;
 }
-
-/* METRIC */
 .metric-title {
     color: #6B7280;
     font-size: 1rem;
@@ -71,8 +61,6 @@ st.markdown("""
     font-size: 2.6rem;
     font-weight: 700;
 }
-
-/* BUTTON */
 .stButton > button {
     width: 100%;
     height: 65px;
@@ -86,8 +74,6 @@ st.markdown("""
 .stButton > button:hover {
     background: linear-gradient(90deg, #FFC837, #FF8008);
 }
-
-/* RESULT */
 .success {
     background: linear-gradient(135deg, #11998E, #38EF7D);
     padding: 30px;
@@ -100,8 +86,6 @@ st.markdown("""
     border-radius: 18px;
     font-size: 1.2rem;
 }
-
-/* FOOTER */
 .footer {
     text-align: center;
     margin-top: 60px;
@@ -112,17 +96,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =================================================
-# LOAD MODEL
+# LOAD BOOSTER MODEL
 # =================================================
-
-import xgboost as xgb
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL.json"
+MODEL_PATH = BASE_DIR / "models" / "DELAY_MODEL_FINAL_BOOSTER.json"
 
-model = xgb.XGBClassifier()
+model = xgb.Booster()
 model.load_model(MODEL_PATH)
-
 
 # =================================================
 # HEADER
@@ -136,8 +116,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
-
 # =================================================
 # SIDEBAR INPUTS
 # =================================================
@@ -150,14 +128,10 @@ traffic = st.sidebar.selectbox("Traffic", ["Low", "Medium", "High", "Jam"])
 vehicle = st.sidebar.selectbox("Vehicle", ["motorcycle", "scooter"])
 area = st.sidebar.selectbox("Area", ["Urban", "Metropolitian", "Rural"])
 category = st.sidebar.selectbox("Category", ["Clothing", "Electronics", "Sports", "Cosmetics", "Toys"])
-
-duration = st.sidebar.number_input(
-    "Estimated Doorstep Delivery Time (minutes)",
-    10, 300, 120
-)
+duration = st.sidebar.number_input("Estimated Doorstep Delivery Time (minutes)", 10, 300, 120)
 
 # =================================================
-# MAIN CONTENT
+# INPUT DATAFRAME
 # =================================================
 input_df = pd.DataFrame([{
     "Agent_Age": age,
@@ -170,56 +144,80 @@ input_df = pd.DataFrame([{
     "Duration": duration
 }])
 
+# =================================================
+# MAIN METRICS DISPLAY
+# =================================================
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown(f"""
-    <div class="card">
-        <div class="metric-title">Agent Rating</div>
-        <div class="metric-value">{rating}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="card">
+            <div class="metric-title">Agent Rating</div>
+            <div class="metric-value">{rating}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 with col2:
-    st.markdown(f"""
-    <div class="card">
-        <div class="metric-title">Estimated Duration</div>
-        <div class="metric-value">{duration} mins</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="card">
+            <div class="metric-title">Estimated Duration</div>
+            <div class="metric-value">{duration} mins</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # =================================================
 # PREDICTION
 # =================================================
 if st.button("🚀 Predict Delivery Status"):
-    pred = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1]
+
+    # Convert to DMatrix
+    dtest = xgb.DMatrix(input_df)
+
+    # Booster prediction returns probability
+    proba = float(model.predict(dtest)[0])
+
+    pred = 1 if proba >= 0.5 else 0
 
     if pred == 1:
-        st.markdown(f"""
-        <div class="danger">
-            🚨 <b>High Risk of Delay</b><br><br>
-            Probability of delay: <b>{prob:.2%}</b><br>
-            • Monitor traffic closely<br>
-            • Assign senior agent<br>
-            • Proactive customer alert
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="danger">
+                🚨 <b>High Risk of Delay</b><br><br>
+                Probability of delay: <b>{proba:.2%}</b><br>
+                • Monitor traffic closely<br>
+                • Assign senior agent<br>
+                • Proactive customer alert
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     else:
-        st.markdown(f"""
-        <div class="success">
-            ✅ <b>Delivery Likely On Time</b><br><br>
-            Probability of delay: <b>{prob:.2%}</b><br>
-            • No action required<br>
-            • Smooth delivery expected
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="success">
+                ✅ <b>Delivery Likely On Time</b><br><br>
+                Probability of delay: <b>{proba:.2%}</b><br>
+                • Smooth delivery expected
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # =================================================
 # FOOTER
 # =================================================
-st.markdown("""
-<div class="footer">
-Built with Python • XGBoost • Streamlit • Real-world Logistics Data
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div class="footer">
+    Built with Python • XGBoost • Streamlit • Real-world Logistics Data
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
