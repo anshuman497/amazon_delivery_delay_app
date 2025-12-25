@@ -15,13 +15,57 @@ st.set_page_config(
 )
 
 # =================================================
-# CSS
+# CSS – Professional Theme
 # =================================================
 st.markdown("""
 <style>
+/* App background */
 .stApp {
-    background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
-    color: white;
+    background-color: #0f172a;
+    color: #e5e7eb;
+}
+
+/* Main title */
+.main-title {
+    font-size: 42px;
+    font-weight: 800;
+    color: #f59e0b;
+}
+
+/* Subtitle */
+.sub-title {
+    font-size: 18px;
+    color: #cbd5e1;
+    margin-bottom: 25px;
+}
+
+/* Card style */
+.card {
+    background-color: #111827;
+    padding: 25px;
+    border-radius: 14px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+/* Button */
+.stButton > button {
+    background-color: #f59e0b;
+    color: #111827;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 700;
+}
+.stButton > button:hover {
+    background-color: #fbbf24;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+    margin-top: 40px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -31,10 +75,8 @@ st.markdown("""
 # =================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load preprocessing pipeline
 preprocessor = joblib.load(BASE_DIR / "models" / "PREPROCESSOR.pkl")
 
-# Load trained XGBoost booster model
 xgb_model = xgb.Booster()
 xgb_model.load_model(str(BASE_DIR / "models" / "XGBMODEL.json"))
 
@@ -43,26 +85,29 @@ xgb_model.load_model(str(BASE_DIR / "models" / "XGBMODEL.json"))
 # =================================================
 st.markdown("""
 <div style="text-align:center;">
-    <h1>📦 Amazon Delivery Delay Prediction</h1>
-    <p>Machine learning model that predicts whether an order will arrive late or on time.</p>
+    <div class="main-title">📦 Amazon Delivery Delay Predictor</div>
+    <div class="sub-title">
+        Predict whether an order will arrive <b>on time</b> or face a <b>delivery delay</b>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 # =================================================
-# SIDEBAR INPUTS
+# SIDEBAR
 # =================================================
-st.sidebar.header("📝 Enter Order Details")
+st.sidebar.markdown("## 🧾 Order Details")
 
 age = st.sidebar.slider("Agent Age", 18, 70, 30)
 rating = st.sidebar.slider("Agent Rating", 1.0, 5.0, 4.5, step=0.1)
-weather = st.sidebar.selectbox("Weather", ["Sunny", "Cloudy", "Stormy", "Sandstorms"])
-traffic = st.sidebar.selectbox("Traffic", ["Low", "Medium", "High", "Jam"])
-vehicle = st.sidebar.selectbox("Vehicle", ["motorcycle", "scooter"])
-area = st.sidebar.selectbox("Area", ["Urban", "Metropolitian", "Rural"])
-category = st.sidebar.selectbox("Category", ["Clothing", "Electronics", "Sports", "Cosmetics", "Toys"])
+
+weather = st.sidebar.selectbox("Weather Condition", ["Sunny", "Cloudy", "Stormy", "Sandstorms"])
+traffic = st.sidebar.selectbox("Traffic Level", ["Low", "Medium", "High", "Jam"])
+vehicle = st.sidebar.selectbox("Delivery Vehicle", ["motorcycle", "scooter"])
+area = st.sidebar.selectbox("Delivery Area", ["Urban", "Metropolitian", "Rural"])
+category = st.sidebar.selectbox("Product Category", ["Clothing", "Electronics", "Sports", "Cosmetics", "Toys"])
 
 # =================================================
-# CREATE DATAFRAME
+# INPUT DATAFRAME
 # =================================================
 input_df = pd.DataFrame([{
     "Agent_Age": age,
@@ -75,32 +120,38 @@ input_df = pd.DataFrame([{
 }])
 
 # =================================================
-# PREDICT BUTTON
+# MAIN CARD
 # =================================================
-if st.button("🚀 Predict Delivery Status"):
+st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-    # 1️⃣ preprocess input data
+st.markdown("### 📊 Prediction Result")
+
+if st.button("🚀 Predict Delivery Status", use_container_width=True):
+
     X = preprocessor.transform(input_df)
-
-    # 2️⃣ convert to XGBoost format
     dtest = xgb.DMatrix(X)
 
-    # 3️⃣ get probability score
     proba = float(xgb_model.predict(dtest)[0])
+    confidence = round(proba * 100, 2)
 
-    pred = 1 if proba >= 0.5 else 0
-
-    if pred == 1:
-        st.error(f"🚨 High Delay Risk — Probability: {proba:.2%}")
+    if proba >= 0.5:
+        st.error(f"🚨 **High Risk of Delay**")
+        st.write(f"Prediction Confidence: **{confidence}%**")
+        st.progress(confidence / 100)
     else:
-        st.success(f"✅ On Time Delivery — Probability: {proba:.2%}")
+        st.success(f"✅ **On-Time Delivery Expected**")
+        st.write(f"Prediction Confidence: **{confidence}%**")
+        st.progress(confidence / 100)
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # =================================================
 # FOOTER
 # =================================================
-st.write("---")
-st.markdown(
-    "<p style='text-align:center;color:#ccc;'>Built with XGBoost + Streamlit</p>",
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div class="footer">
+Built with ❤️ using <b>Python, XGBoost & Streamlit</b><br>
+© 2025 – Amazon Delivery Delay Prediction Project
+</div>
+""", unsafe_allow_html=True)
 
